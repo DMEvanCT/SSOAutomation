@@ -1,0 +1,256 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  SSOAutoAssign
+
+  Sample SAM Template for SSOAutoAssign
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 10
+
+Parameters:
+  SSOINSTANCEARN:
+    Type: String
+  DIRECTORYSERVICEID:
+    Type: String
+
+Resources:
+#  SSOAutoAssign:
+#    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+#    Properties:
+#      CodeUri: sso_auto_assign/
+#      Handler: app.lambda_handler
+#      Runtime: python3.9
+#      Environment:
+#        Variables:
+#          DIRECTORY_SERVICE_ID: !Ref DIRECTORYSERVICEID
+#          SSO_INSTANCE_ARN: !Ref SSOINSTANCEARN
+#      Architectures:
+#        - arm64
+#      Policies:
+#        - Statement:
+#            Effect: Allow
+#            Action:
+#              - sso:*
+#            Resource: "*"
+#        - Statement:
+#            Effect: Allow
+#            Action: "identitystore:ListGroups"
+#            Resource: "*"
+#        - Statement:
+#            Effect: Allow
+#            Action: "organizations:ListAccounts"
+#            Resource: "*"
+#      Events:
+#        CreateGroupEvent:
+#          Type: EventBridgeRule
+#          Properties:
+#              InputPath: "$.detail"
+#              Pattern:
+#                "detail-type":
+#                  - "AWS API Call via CloudTrail"
+#                detail:
+#                  eventSource:
+#                    - "sso-directory.amazonaws.com"
+#                  eventName:
+#                      - CreateGroup
+  DynamoDBAccountLoadDynamic:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: dynamo_account_load/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - arm64
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action: "dynamodb:PutItem"
+            Resource: !GetAtt AWSOrgAccounts.Arn
+        - Statement:
+            Effect: Allow
+            Action: "organizations:DescribeAccount"
+            Resource: "*"
+      Events:
+        CreateAccountEvent:
+          Type: EventBridgeRule
+          Properties:
+            InputPath: "$.detail.serviceEventDetails.createManagedAccountStatus.account"
+            Pattern:
+              "detail-type":
+                - "AWS API Call via CloudTrail"
+              detail:
+                eventSource:
+                  - "controltower.amazonaws.com"
+                eventName:
+                  - CreateManagedAccount
+                serviceEventDetails:
+                  createManagedAccountStatus:
+                    state:
+                      - "SUCCEEDED"
+
+
+  SSOAutoAssignDynamo:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: sso_auto_assign_dynamo/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Environment:
+        Variables:
+          DIRECTORY_SERVICE_ID: !Ref DIRECTORYSERVICEID
+          SSO_INSTANCE_ARN: !Ref SSOINSTANCEARN
+      Architectures:
+        - arm64
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - sso:*
+            Resource: "*"
+        - Statement:
+            Effect: Allow
+            Action: "identitystore:ListGroups"
+            Resource: "*"
+        - Statement:
+            Effect: Allow
+            Action: "organizations:ListAccounts"
+            Resource: "*"
+        - Statement:
+            Effect: Allow
+            Action:
+              - "dynamodb:query"
+              - "dynamodb:scan"
+            Resource: !GetAtt AWSOrgWideGroups.Arn
+        - Statement:
+            Effect: Allow
+            Action:
+              - "dynamodb:query"
+            Resource: !GetAtt AWSOrgAccounts.Arn
+      Events:
+        CreateGroupEvent:
+          Type: EventBridgeRule
+          Properties:
+              InputPath: "$.detail"
+              Pattern:
+                "detail-type":
+                  - "AWS API Call via CloudTrail"
+                detail:
+                  eventSource:
+                    - "sso-directory.amazonaws.com"
+                  eventName:
+                      - CreateGroup
+        CreateAccountEvent:
+          Type: EventBridgeRule
+          Properties:
+            InputPath: "$.detail"
+            Pattern:
+              "detail-type":
+                - "AWS API Call via CloudTrail"
+              detail:
+                eventSource:
+                  - "controltower.amazonaws.com"
+                eventName:
+                  - CreateManagedAccount
+                serviceEventDetails:
+                  createManagedAccountStatus:
+                    state:
+                      - "SUCCEEDED"
+  InitialLoad:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: initial_load/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - arm64
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action: "organizations:ListAccounts"
+            Resource: "*"
+        - Statement:
+            Effect: Allow
+            Action: "dynamodb:PutItem"
+            Resource: !GetAtt AWSOrgAccounts.Arn
+
+  OrgWideRoles:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: org_wide_groups/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - arm64
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action: "dynamodb:PutItem"
+            Resource: !GetAtt AWSOrgWideGroups.Arn
+      Events:
+        CreateGroupEvent:
+          Type: EventBridgeRule
+          Properties:
+              InputPath: "$.detail"
+              Pattern:
+                "detail-type":
+                  - "AWS API Call via CloudTrail"
+                detail:
+                  eventSource:
+                    - "sso-directory.amazonaws.com"
+                  eventName:
+                      - CreateGroup
+
+
+  AWSOrgAccounts:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AWSOrgAccounts
+      BillingMode: PROVISIONED
+      AttributeDefinitions:
+        -
+          AttributeName: Id
+          AttributeType: S
+        -
+          AttributeName: Name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: Id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      GlobalSecondaryIndexes:
+        -
+          IndexName: AccountNameIndex
+          KeySchema:
+            -
+              AttributeName: Name
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+             ReadCapacityUnits: 5
+             WriteCapacityUnits: 5
+
+  AWSOrgWideGroups:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ORGSSOGroups
+      BillingMode: PROVISIONED
+      AttributeDefinitions:
+        -
+          AttributeName: GroupID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: GroupID
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+
+
+
