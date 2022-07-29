@@ -116,7 +116,9 @@ def lambda_handler(event, context):
     event_name = event["eventName"]
     # Assigns to account/accounts on CreatGroup
     if event_name == "CreateGroup":
-        production_info = getAccountIDDynamo("Production")
+        account_info = event.get("serviceEventDetails", {}).get("createManagedAccountStatus", {})
+        account_name = account_info["account"]["accountName"]
+        production_info = getAccountIDDynamo(account_name)
         print(production_info)
 
         ssoadmin_client = boto3.client("sso-admin")
