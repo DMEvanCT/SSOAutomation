@@ -23,7 +23,7 @@ def getAccountIDDynamo(account_name):
 
 
 # Get the permission set ID from the name of the permission
-def getPermIDFromName(perms, permission_set_name, ssoadmin_client):
+def getPermIDFromName(perms, permission_set_name, ssoadmin_client, next_token):
     for perm in perms["PermissionSets"]:
         perm_details = ssoadmin_client.describe_permission_set(
             InstanceArn=SSO_INSTANCE_ARN,
@@ -33,9 +33,7 @@ def getPermIDFromName(perms, permission_set_name, ssoadmin_client):
         if perm_details["PermissionSet"]["Name"] == permission_set_name:
             print(perm_details["PermissionSet"]["PermissionSetArn"])
             return perm_details["PermissionSet"]["PermissionSetArn"]
-
-        print("Perm Details:")
-        print(perm_details)
+    return ""
 
 
 # Used in the O type accounts to assign to all accounts
@@ -103,8 +101,16 @@ def associateSSO(sso_instance_arn, account_id, perm_set_arn, group_id):
     return response
 
 
+def returnNextTokenListPerms(permissions_list):
+    try:
+        next_token = permissions_list["NextToken"]
+        return next_token
+    except KeyError:
+        return ""
+
+
 def getDynamoOrgGroups():
-    # Table scans are sub par but so is itterating through a list for account names :Shrug: if someone wants to make
+    # Table scans are sub par but so is iterating through a list for account names :Shrug: if someone wants to make
     # better be my guest.
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table('ORGSSOGroups')
@@ -130,7 +136,8 @@ def lambda_handler(event, context):
             InstanceArn=SSO_INSTANCE_ARN,
             MaxResults=100
         )
-        # Again super inefiecent. @TODO work with aws to make this filterable
+        next_token = get_perm_sets["NextToken"]
+        # Again super inefficient. @TODO work with aws to make this filterable
         group = event.get("responseElements", {}).get("group", {})
         group_name = group["displayName"]
         group_name_split = group_name.split("-")
@@ -170,6 +177,7 @@ def lambda_handler(event, context):
             InstanceArn=SSO_INSTANCE_ARN,
             MaxResults=100
         )
+        next_token = returnNextTokenListPerms(get_perm_sets)
         group_names = getDynamoOrgGroups()
         account_info = event.get("serviceEventDetails", {}).get("createManagedAccountStatus", {})
         account_id = account_info["account"]["accountId"]
