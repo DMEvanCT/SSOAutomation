@@ -58,6 +58,8 @@ def getGroupbyGroupName(group_name):
             },
         ]
     )
+    
+    print(group_info)
 
     return group_info["Groups"][0]["GroupId"]
 
@@ -114,13 +116,8 @@ def getDynamoOrgGroups():
 
 def lambda_handler(event, context):
     event_name = event["eventName"]
-    # Assigns to account/accounts on CreatGroup
+    # Assigns to groups to accounts and permission sets on CreatGroup
     if event_name == "CreateGroup":
-        account_info = event.get("serviceEventDetails", {}).get("createManagedAccountStatus", {})
-        account_name = account_info["account"]["accountName"]
-        production_info = getAccountIDDynamo(account_name)
-        print(production_info)
-
         ssoadmin_client = boto3.client("sso-admin")
         identity_services_client = boto3.client("identitystore")
 
@@ -139,7 +136,7 @@ def lambda_handler(event, context):
             print("Printing A group")
             account_name = group_name_split[2]
             permission_set = group_name_split[3]
-            print(f'Account Name: {account_name}, Permission Set: {permission_set}')
+            print(f'Account Name: {account_name}, Permission Set: {permission_set}, GroupName: {group_name}')
             account_id = getAccountIDDynamo(account_name)
             group_id = getGroupbyGroupName(group_name)
             # Get the permission set ARN from the name
@@ -160,7 +157,7 @@ def lambda_handler(event, context):
 
             perm_set_arn = getPermIDFromName(get_perm_sets, permission_set, ssoadmin_client)
             for account in account_ids:
-                sso_associate_response = associateSSO(SSO_INSTANCE_ARN, account_id, perm_set_arn, group_id)
+                sso_associate_response = associateSSO(SSO_INSTANCE_ARN, account, perm_set_arn, group_id)
                 print(sso_associate_response)
     # Uses the account create event to auto assign all O groups to new accounts
     if event_name == "CreateManagedAccount":

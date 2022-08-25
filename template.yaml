@@ -123,12 +123,13 @@ Resources:
             Action:
               - "dynamodb:query"
               - "dynamodb:scan"
-            Resource: !GetAtt AWSOrgWideGroups.Arn
+            Resource: 
+              !Sub "${AWSOrgWideGroups.Arn}*"
         - Statement:
             Effect: Allow
             Action:
               - "dynamodb:query"
-            Resource: !GetAtt AWSOrgAccounts.Arn
+            Resource: !Sub "${AWSOrgAccounts.Arn}*"
       Events:
         CreateGroupEvent:
           Type: EventBridgeRule
