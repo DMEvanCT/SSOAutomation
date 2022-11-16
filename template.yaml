@@ -130,6 +130,95 @@ Resources:
             Action:
               - "dynamodb:query"
             Resource: !Sub "${AWSOrgAccounts.Arn}*"
+        - Sid: IAMRoleProvisioningActions
+          Effect: Allow
+          Action:
+            - 'iam:AttachRolePolicy'
+            - 'iam:CreateRole'
+            - 'iam:PutRolePolicy'
+            - 'iam:UpdateRole'
+            - 'iam:UpdateRoleDescription'
+            - 'iam:UpdateAssumeRolePolicy'
+            - 'iam:PutRolePermissionsBoundary'
+            - 'iam:DeleteRolePermissionsBoundary'
+          Resource:
+            - '*'
+        - Sid: IAMRoleReadActions
+          Effect: Allow
+          Action:
+            - 'iam:GetRole'
+            - 'iam:ListRoles'
+          Resource:
+            - '*'
+        - Sid: IAMRoleCleanupActions
+          Effect: Allow
+          Action:
+            - 'iam:DeleteRole'
+            - 'iam:DeleteRolePolicy'
+            - 'iam:DetachRolePolicy'
+            - 'iam:ListRolePolicies'
+            - 'iam:ListAttachedRolePolicies'
+          Resource:
+            - '*'
+        - Sid: IAMSLRCleanupActions
+          Effect: Allow
+          Action:
+            - 'iam:DeleteServiceLinkedRole'
+            - 'iam:GetServiceLinkedRoleDeletionStatus'
+            - 'iam:DeleteRole'
+            - 'iam:GetRole'
+          Resource:
+            - '*'
+        - Sid: IAMSAMLProviderCreationAction
+          Effect: Allow
+          Action:
+            - 'iam:CreateSAMLProvider'
+          Resource:
+            - 'arn:aws:iam::*:saml-provider/AWSSSO_*'
+        - Sid: IAMSAMLProviderUpdateAction
+          Effect: Allow
+          Action:
+            - 'iam:UpdateSAMLProvider'
+          Resource:
+            - 'arn:aws:iam::*:saml-provider/AWSSSO_*'
+        - Sid: IAMSAMLProviderCleanupActions
+          Effect: Allow
+          Action:
+            - 'iam:DeleteSAMLProvider'
+            - 'iam:GetSAMLProvider'
+          Resource:
+            - 'arn:aws:iam::*:saml-provider/AWSSSO_*'
+        - Effect: Allow
+          Action:
+            - 'organizations:DescribeAccount'
+            - 'organizations:DescribeOrganization'
+            - 'organizations:ListAccounts'
+            - 'organizations:ListDelegatedAdministrators'
+            - 'organizations:ListAWSServiceAccessForOrganization'
+          Resource:
+            - '*'
+        - Sid: AllowUnauthAppForDirectory
+          Effect: Allow
+          Action:
+            - 'ds:UnauthorizeApplication'
+          Resource:
+            - '*'
+        - Sid: AllowDescribeForDirectory
+          Effect: Allow
+          Action:
+            - 'ds:DescribeDirectories'
+            - 'ds:DescribeTrusts'
+          Resource:
+            - '*'
+        - Sid: AllowDescribeAndListOperationsOnIdentitySource
+          Effect: Allow
+          Action:
+            - 'identitystore:DescribeUser'
+            - 'identitystore:DescribeGroup'
+            - 'identitystore:ListGroups'
+            - 'identitystore:ListUsers'
+          Resource:
+            - '*'
       Events:
         CreateGroupEvent:
           Type: EventBridgeRule
