@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
   SSOAutoAssign
@@ -8,7 +8,7 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 10
+    Timeout: 30
 
 Parameters:
   SSOINSTANCEARN:
@@ -105,120 +105,119 @@ Resources:
       Architectures:
         - arm64
       Policies:
-        - Statement:
-            Effect: Allow
-            Action:
-              - sso:*
-            Resource: "*"
-        - Statement:
-            Effect: Allow
-            Action: "identitystore:ListGroups"
-            Resource: "*"
-        - Statement:
-            Effect: Allow
-            Action: "organizations:ListAccounts"
-            Resource: "*"
-        - Statement:
-            Effect: Allow
-            Action:
-              - "dynamodb:query"
-              - "dynamodb:scan"
-            Resource: 
-              !Sub "${AWSOrgWideGroups.Arn}*"
-        - Statement:
-            Effect: Allow
-            Action:
-              - "dynamodb:query"
-            Resource: !Sub "${AWSOrgAccounts.Arn}*"
-        - Sid: IAMRoleProvisioningActions
+      - Statement:
+        - Sid: AllowSSO
           Effect: Allow
           Action:
-            - 'iam:AttachRolePolicy'
-            - 'iam:CreateRole'
-            - 'iam:PutRolePolicy'
-            - 'iam:UpdateRole'
-            - 'iam:UpdateRoleDescription'
-            - 'iam:UpdateAssumeRolePolicy'
-            - 'iam:PutRolePermissionsBoundary'
-            - 'iam:DeleteRolePermissionsBoundary'
-          Resource:
-            - '*'
-        - Sid: IAMRoleReadActions
+          - sso:*
+          Resource: '*'
+        - Sid: AllowIdentityStoreList
           Effect: Allow
           Action:
-            - 'iam:GetRole'
-            - 'iam:ListRoles'
-          Resource:
-            - '*'
-        - Sid: IAMRoleCleanupActions
+          - identitystore:ListGroups
+          Resource: '*'
+        - Sid: AllowListAccounts
           Effect: Allow
           Action:
-            - 'iam:DeleteRole'
-            - 'iam:DeleteRolePolicy'
-            - 'iam:DetachRolePolicy'
-            - 'iam:ListRolePolicies'
-            - 'iam:ListAttachedRolePolicies'
+          - organizations:ListAccounts
+          Resource: '*'
+        - Sid: AllowDynamoDBQuery
+          Effect: Allow
+          Action:
+          - "dynamodb:query"
+          - "dynamodb:scan" 
+          Resource: 
+              - !Sub "${AWSOrgWideGroups.Arn}*"
+              - !Sub "${AWSOrgAccounts.Arn}*"
+        - Sid: IAMCleanupActions
+          Effect: Allow
+          Action:
+            - "iam:AttachRolePolicy"
+            - "iam:CreateRole"
+            - "iam:PutRolePolicy"
+            - "iam:UpdateRole"
+            - "iam:UpdateRoleDescription"
+            - "iam:UpdateAssumeRolePolicy"
+            - "iam:PutRolePermissionsBoundary"
+            - "iam:DeleteRolePermissionsBoundary"
           Resource:
-            - '*'
+            - "*"
+        - Sid: GetRolesAction
+          Effect: Allow
+          Action:
+            - "iam:GetRole"
+            - "iam:ListRoles"
+          Resource:
+            - "*"
+        - Sid: DeleteRolesAction
+          Effect: Allow
+          Action:
+            - "iam:DeleteRole"
+            - "iam:DeleteRolePolicy"
+            - "iam:DetachRolePolicy"
+            - "iam:ListRolePolicies"
+            - "iam:ListAttachedRolePolicies"
+          Resource:
+            - "*"
         - Sid: IAMSLRCleanupActions
           Effect: Allow
           Action:
-            - 'iam:DeleteServiceLinkedRole'
-            - 'iam:GetServiceLinkedRoleDeletionStatus'
-            - 'iam:DeleteRole'
-            - 'iam:GetRole'
+            - "iam:DeleteServiceLinkedRole"
+            - "iam:GetServiceLinkedRoleDeletionStatus"
+            - "iam:DeleteRole"
+            - "iam:GetRole"
           Resource:
-            - '*'
+            - "*"
         - Sid: IAMSAMLProviderCreationAction
           Effect: Allow
           Action:
-            - 'iam:CreateSAMLProvider'
+            - "iam:CreateSAMLProvider"
           Resource:
-            - 'arn:aws:iam::*:saml-provider/AWSSSO_*'
+            - "arn:aws:iam::*:saml-provider/AWSSSO_*"
         - Sid: IAMSAMLProviderUpdateAction
           Effect: Allow
           Action:
-            - 'iam:UpdateSAMLProvider'
+            - "iam:UpdateSAMLProvider"
           Resource:
-            - 'arn:aws:iam::*:saml-provider/AWSSSO_*'
+            - "arn:aws:iam::*:saml-provider/AWSSSO_*"
         - Sid: IAMSAMLProviderCleanupActions
           Effect: Allow
           Action:
-            - 'iam:DeleteSAMLProvider'
-            - 'iam:GetSAMLProvider'
+            - "iam:DeleteSAMLProvider"
+            - "iam:GetSAMLProvider"
           Resource:
-            - 'arn:aws:iam::*:saml-provider/AWSSSO_*'
-        - Effect: Allow
+            - "arn:aws:iam::*:saml-provider/AWSSSO_*"
+        - Sid: OrganizationAccess
+          Effect: Allow
           Action:
-            - 'organizations:DescribeAccount'
-            - 'organizations:DescribeOrganization'
-            - 'organizations:ListAccounts'
-            - 'organizations:ListDelegatedAdministrators'
-            - 'organizations:ListAWSServiceAccessForOrganization'
+              - "organizations:DescribeAccount"
+              - "organizations:DescribeOrganization"
+              - "organizations:ListDelegatedAdministrators"
+              - "organizations:ListAWSServiceAccessForOrganization"
           Resource:
-            - '*'
+            - "*"
         - Sid: AllowUnauthAppForDirectory
           Effect: Allow
           Action:
-            - 'ds:UnauthorizeApplication'
+            - "ds:UnauthorizeApplication"
           Resource:
-            - '*'
+            - "*"
         - Sid: AllowDescribeForDirectory
           Effect: Allow
           Action:
-            - 'ds:DescribeDirectories'
-            - 'ds:DescribeTrusts'
+            - "ds:DescribeDirectories"
+            - "ds:DescribeTrusts"
           Resource:
-            - '*'
+            - "*"
         - Sid: AllowDescribeAndListOperationsOnIdentitySource
           Effect: Allow
           Action:
-            - 'identitystore:DescribeUser'
-            - 'identitystore:DescribeGroup'
-            - 'identitystore:ListGroups'
-            - 'identitystore:ListUsers'
+            - "identitystore:DescribeUser"
+            - "identitystore:DescribeGroup"
+            - "identitystore:ListGroups"
+            - "identitystore:ListUsers"
           Resource:
-            - '*'
+            - "*"
       Events:
         CreateGroupEvent:
           Type: EventBridgeRule
