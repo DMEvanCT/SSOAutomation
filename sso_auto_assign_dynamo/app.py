@@ -58,7 +58,7 @@ def getGroupbyGroupName(group_name):
             },
         ]
     )
-    
+
     print(group_info)
 
     return group_info["Groups"][0]["GroupId"]
@@ -112,6 +112,13 @@ def getDynamoOrgGroups():
     table = dynamodb.Table('ORGSSOGroups')
     response = table.scan()
     return response["Items"]
+
+
+def getAccountAssignmentStatus(client: boto3.client(), InstanceArn: str, AccountAssignmentCreationRequestId: str):
+    response = client.describe_account_assignment_creation_status(
+        InstanceArn=InstanceArn
+    )
+    return response["AccountAssignmentsCreationStatus"][0]["Status"]
 
 
 def lambda_handler(event, context):
