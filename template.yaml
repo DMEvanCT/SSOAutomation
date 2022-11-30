@@ -340,6 +340,12 @@ Resources:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
 
+  InitialLoadRun:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt InitialLoad.Arn
+
+
 
 
 

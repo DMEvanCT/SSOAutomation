@@ -3,7 +3,6 @@
 import boto3
 
 
-
 def lambda_handler(event, context):
     organizations = boto3.client("organizations")
     accounts = organizations.list_accounts()
@@ -12,9 +11,14 @@ def lambda_handler(event, context):
     for account in accounts["Accounts"]:
         del account["JoinedTimestamp"]
         del account["JoinedMethod"]
-        client = boto3.resource('dynamodb')
         # Insert into the AWSOrgAccounts Table in master
         table = dynamo.Table("AWSOrgAccounts")
         table.put_item(Item=account)
 
 
+
+
+
+
+
+        

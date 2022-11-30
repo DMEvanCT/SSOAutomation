@@ -1,0 +1,321 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'SSOAutoAssign
+
+  Sample SAM Template for SSOAutoAssign
+
+  '
+Globals:
+  Function:
+    Timeout: 30
+Parameters:
+  SSOINSTANCEARN:
+    Type: String
+  DIRECTORYSERVICEID:
+    Type: String
+Resources:
+  DynamoDBAccountLoadDynamic:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://s3-serverless-dmevanct-public/128611d3a683531d152ae48a59321c51
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+      - arm64
+      Policies:
+      - Statement:
+          Effect: Allow
+          Action: dynamodb:PutItem
+          Resource:
+            Fn::GetAtt:
+            - AWSOrgAccounts
+            - Arn
+      - Statement:
+          Effect: Allow
+          Action: organizations:DescribeAccount
+          Resource: '*'
+      Events:
+        CreateAccountEvent:
+          Type: EventBridgeRule
+          Properties:
+            InputPath: $.detail.serviceEventDetails.createManagedAccountStatus.account
+            Pattern:
+              detail-type:
+              - AWS API Call via CloudTrail
+              detail:
+                eventSource:
+                - controltower.amazonaws.com
+                eventName:
+                - CreateManagedAccount
+                serviceEventDetails:
+                  createManagedAccountStatus:
+                    state:
+                    - SUCCEEDED
+    Metadata:
+      SamResourceId: DynamoDBAccountLoadDynamic
+  SSOAutoAssignDynamo:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://s3-serverless-dmevanct-public/4764d395c9521229020403823f8cceb5
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Environment:
+        Variables:
+          DIRECTORY_SERVICE_ID:
+            Ref: DIRECTORYSERVICEID
+          SSO_INSTANCE_ARN:
+            Ref: SSOINSTANCEARN
+      Architectures:
+      - arm64
+      Policies:
+      - Statement:
+        - Sid: AllowSSO
+          Effect: Allow
+          Action:
+          - sso:*
+          Resource: '*'
+        - Sid: AllowIdentityStoreList
+          Effect: Allow
+          Action:
+          - identitystore:ListGroups
+          Resource: '*'
+        - Sid: AllowListAccounts
+          Effect: Allow
+          Action:
+          - organizations:ListAccounts
+          Resource: '*'
+        - Sid: AllowDynamoDBQuery
+          Effect: Allow
+          Action:
+          - dynamodb:query
+          - dynamodb:scan
+          Resource:
+          - Fn::Sub: ${AWSOrgWideGroups.Arn}*
+          - Fn::Sub: ${AWSOrgAccounts.Arn}*
+        - Sid: IAMCleanupActions
+          Effect: Allow
+          Action:
+          - iam:AttachRolePolicy
+          - iam:CreateRole
+          - iam:PutRolePolicy
+          - iam:UpdateRole
+          - iam:UpdateRoleDescription
+          - iam:UpdateAssumeRolePolicy
+          - iam:PutRolePermissionsBoundary
+          - iam:DeleteRolePermissionsBoundary
+          Resource:
+          - '*'
+        - Sid: GetRolesAction
+          Effect: Allow
+          Action:
+          - iam:GetRole
+          - iam:ListRoles
+          Resource:
+          - '*'
+        - Sid: DeleteRolesAction
+          Effect: Allow
+          Action:
+          - iam:DeleteRole
+          - iam:DeleteRolePolicy
+          - iam:DetachRolePolicy
+          - iam:ListRolePolicies
+          - iam:ListAttachedRolePolicies
+          Resource:
+          - '*'
+        - Sid: IAMSLRCleanupActions
+          Effect: Allow
+          Action:
+          - iam:DeleteServiceLinkedRole
+          - iam:GetServiceLinkedRoleDeletionStatus
+          - iam:DeleteRole
+          - iam:GetRole
+          Resource:
+          - '*'
+        - Sid: IAMSAMLProviderCreationAction
+          Effect: Allow
+          Action:
+          - iam:CreateSAMLProvider
+          Resource:
+          - arn:aws:iam::*:saml-provider/AWSSSO_*
+        - Sid: IAMSAMLProviderUpdateAction
+          Effect: Allow
+          Action:
+          - iam:UpdateSAMLProvider
+          Resource:
+          - arn:aws:iam::*:saml-provider/AWSSSO_*
+        - Sid: IAMSAMLProviderCleanupActions
+          Effect: Allow
+          Action:
+          - iam:DeleteSAMLProvider
+          - iam:GetSAMLProvider
+          Resource:
+          - arn:aws:iam::*:saml-provider/AWSSSO_*
+        - Sid: OrganizationAccess
+          Effect: Allow
+          Action:
+          - organizations:DescribeAccount
+          - organizations:DescribeOrganization
+          - organizations:ListDelegatedAdministrators
+          - organizations:ListAWSServiceAccessForOrganization
+          Resource:
+          - '*'
+        - Sid: AllowUnauthAppForDirectory
+          Effect: Allow
+          Action:
+          - ds:UnauthorizeApplication
+          Resource:
+          - '*'
+        - Sid: AllowDescribeForDirectory
+          Effect: Allow
+          Action:
+          - ds:DescribeDirectories
+          - ds:DescribeTrusts
+          Resource:
+          - '*'
+        - Sid: AllowDescribeAndListOperationsOnIdentitySource
+          Effect: Allow
+          Action:
+          - identitystore:DescribeUser
+          - identitystore:DescribeGroup
+          - identitystore:ListGroups
+          - identitystore:ListUsers
+          Resource:
+          - '*'
+      Events:
+        CreateGroupEvent:
+          Type: EventBridgeRule
+          Properties:
+            InputPath: $.detail
+            Pattern:
+              detail-type:
+              - AWS API Call via CloudTrail
+              detail:
+                eventSource:
+                - sso-directory.amazonaws.com
+                eventName:
+                - CreateGroup
+        CreateAccountEvent:
+          Type: EventBridgeRule
+          Properties:
+            InputPath: $.detail
+            Pattern:
+              detail-type:
+              - AWS API Call via CloudTrail
+              detail:
+                eventSource:
+                - controltower.amazonaws.com
+                eventName:
+                - CreateManagedAccount
+                serviceEventDetails:
+                  createManagedAccountStatus:
+                    state:
+                    - SUCCEEDED
+    Metadata:
+      SamResourceId: SSOAutoAssignDynamo
+  InitialLoad:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://s3-serverless-dmevanct-public/ead50cde08dae8f5075c0771c131dca3
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+      - arm64
+      Policies:
+      - Statement:
+          Effect: Allow
+          Action: organizations:ListAccounts
+          Resource: '*'
+      - Statement:
+          Effect: Allow
+          Action: dynamodb:PutItem
+          Resource:
+            Fn::GetAtt:
+            - AWSOrgAccounts
+            - Arn
+    Metadata:
+      SamResourceId: InitialLoad
+  OrgWideRoles:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://s3-serverless-dmevanct-public/10de5cb33406cbbcd1371c24957076ea
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+      - arm64
+      Policies:
+      - Statement:
+          Effect: Allow
+          Action: dynamodb:PutItem
+          Resource:
+            Fn::GetAtt:
+            - AWSOrgWideGroups
+            - Arn
+      Events:
+        CreateGroupEvent:
+          Type: EventBridgeRule
+          Properties:
+            InputPath: $.detail
+            Pattern:
+              detail-type:
+              - AWS API Call via CloudTrail
+              detail:
+                eventSource:
+                - sso-directory.amazonaws.com
+                eventName:
+                - CreateGroup
+    Metadata:
+      SamResourceId: OrgWideRoles
+  AWSOrgAccounts:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AWSOrgAccounts
+      BillingMode: PROVISIONED
+      AttributeDefinitions:
+      - AttributeName: Id
+        AttributeType: S
+      - AttributeName: Name
+        AttributeType: S
+      KeySchema:
+      - AttributeName: Id
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      GlobalSecondaryIndexes:
+      - IndexName: AccountNameIndex
+        KeySchema:
+        - AttributeName: Name
+          KeyType: HASH
+        Projection:
+          ProjectionType: ALL
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+    Metadata:
+      SamResourceId: AWSOrgAccounts
+  AWSOrgWideGroups:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ORGSSOGroups
+      BillingMode: PROVISIONED
+      AttributeDefinitions:
+      - AttributeName: GroupID
+        AttributeType: S
+      KeySchema:
+      - AttributeName: GroupID
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+    Metadata:
+      SamResourceId: AWSOrgWideGroups
+  InitialLoadRun:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+        - InitialLoad
+        - Arn
+    Metadata:
+      SamResourceId: InitialLoadRun
+

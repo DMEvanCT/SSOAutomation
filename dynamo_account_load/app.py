@@ -13,7 +13,6 @@ def lambda_handler(event, context):
     dynamo = boto3.resource('dynamodb')
     del org_account_info["JoinedTimestamp"]
     del org_account_info["JoinedMethod"]
-    client = boto3.resource('dynamodb')
     # Insert into the AWSOrgAccounts Table in master
     table = dynamo.Table("AWSOrgAccounts")
     table.put_item(Item=org_account_info)
