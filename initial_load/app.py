@@ -18,23 +18,22 @@ def lambda_handler(event, context):
                 table.put_item(Item=account)
             except dynamo.exceptions.ProvisionedThroughputExceededException as e:
                 print(e)
-                cfnresponse.send(event, context, cfnresponse.FAILED, "Exceeded Provisioned Throughput")
+                message = {"message": "Exceeded Provisioned Throughput"}
+                cfnresponse.send(event, context, cfnresponse.FAILED, message)
             except dynamo.exceptions.RequestLimitExceeded as e:
                 print(e)
-                cfnresponse.send(event, context, cfnresponse.FAILED, "Exceeded Request Limit")
+                message = {"message": "Request Limit Exceeded"}
+                cfnresponse.send(event, context, cfnresponse.FAILED, message)
             except dynamo.exceptions.ResourceNotFoundException as e:
                 print(e)
+                message = {"message": "Resource Not found"}
+                cfnresponse.send(event, context, cfnresponse.FAILED, message)
+
+    message = {"message": "All set! Everything is loaded!"}
+    cfnresponse.send(event, context, cfnresponse.SUCCESS, message)
     if event["RequestType"] == "Delete":
-        cfnresponse.send(event, context, cfnresponse.SUCCESS, "Nothing to do here!")
+        message = {"message": "Nothing to do here!"}
+        cfnresponse.send(event, context, cfnresponse.SUCCESS, message)
     if event["RequestType"] == "Update":
-        cfnresponse.send(event, context, cfnresponse.SUCCESS, "Nothing to do here!")
-
-
-
-
-
-
-
-
-
-        
+        message = {"message": "Nothing to do here!"}
+        cfnresponse.send(event, context, cfnresponse.SUCCESS, message)
