@@ -17,7 +17,7 @@ Resources:
   DynamoDBAccountLoadDynamic:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://s3-serverless-dmevanct-public/128611d3a683531d152ae48a59321c51
+      CodeUri: s3://s3-serverless-dmevanct-public/93ca64674ddd4ce541eac4020278e519
       Handler: app.lambda_handler
       Runtime: python3.9
       Architectures:
