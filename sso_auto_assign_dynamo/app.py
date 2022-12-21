@@ -104,6 +104,15 @@ def associateSSO(sso_instance_arn, account_id, perm_set_arn, group_id):
     # Print the response to ensure things are in progress
     return response
 
+def checkAccountAssignmentStatus(ssocClient boto3.client, ):
+    response = client.list_account_assignment_creation_status(
+    InstanceArn='string',
+    MaxResults=1,
+    Filter={
+        'Status': 'IN_PROGRESS'|'FAILED'|'SUCCEEDED'
+    }
+)
+
 
 def getDynamoOrgGroups():
     # Table scans are sub par but so is itterating through a list for account names :Shrug: if someone wants to make
@@ -112,13 +121,6 @@ def getDynamoOrgGroups():
     table = dynamodb.Table('ORGSSOGroups')
     response = table.scan()
     return response["Items"]
-
-
-def getAccountAssignmentStatus(client: boto3.client(), InstanceArn: str, AccountAssignmentCreationRequestId: str):
-    response = client.describe_account_assignment_creation_status(
-        InstanceArn=InstanceArn
-    )
-    return response["AccountAssignmentsCreationStatus"][0]["Status"]
 
 
 def lambda_handler(event, context):
