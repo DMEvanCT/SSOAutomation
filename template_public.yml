@@ -56,7 +56,7 @@ Resources:
   SSOAutoAssignDynamo:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://s3-serverless-dmevanct-public/4764d395c9521229020403823f8cceb5
+      CodeUri: s3://s3-serverless-dmevanct-public/360025188b2b103bc500e9ea4bd358fa
       Handler: app.lambda_handler
       Runtime: python3.9
       Environment:
@@ -215,7 +215,7 @@ Resources:
   InitialLoad:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://s3-serverless-dmevanct-public/e6e3106592c7f46fb6352e5dc08366d6
+      CodeUri: s3://s3-serverless-dmevanct-public/33c1a240d17e8625cddf5fd69c6901b6
       Handler: app.lambda_handler
       Runtime: python3.9
       Architectures:

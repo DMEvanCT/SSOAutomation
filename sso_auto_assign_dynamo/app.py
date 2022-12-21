@@ -104,16 +104,6 @@ def associateSSO(sso_instance_arn, account_id, perm_set_arn, group_id):
     # Print the response to ensure things are in progress
     return response
 
-def checkAccountAssignmentStatus(ssocClient boto3.client, ):
-    response = client.list_account_assignment_creation_status(
-    InstanceArn='string',
-    MaxResults=1,
-    Filter={
-        'Status': 'IN_PROGRESS'|'FAILED'|'SUCCEEDED'
-    }
-)
-
-
 def getDynamoOrgGroups():
     # Table scans are sub par but so is itterating through a list for account names :Shrug: if someone wants to make
     # better be my guest.
@@ -187,6 +177,6 @@ def lambda_handler(event, context):
             perm_set_arn = getPermIDFromName(get_perm_sets, perm_name, ssoadmin_client)
             sso_associate_response = associateSSO(SSO_INSTANCE_ARN, account_id, perm_set_arn, group_id)
             print(sso_associate_response)
-
+    # Group names are probably not correct if you get this
     else:
         print("Nothing I can do here")
