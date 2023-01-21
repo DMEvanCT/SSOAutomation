@@ -154,10 +154,20 @@ Resources:
           Effect: Allow
           Action:
           - "dynamodb:query"
-          - "dynamodb:scan" 
+          - "dynamodb:scan"
           Resource: 
               - !Sub "${AWSOrgWideGroups.Arn}*"
               - !Sub "${AWSOrgAccounts.Arn}*"
+        - Sid: AllowDynamoPut
+          Effect: Allow
+          Action:
+          - "dynamodb:query"
+          - "dynamodb:scan"
+          - "dynamodb:PutItem"
+          - "dynamodb:UpdateItem"
+          Resource:
+              - !Sub "${AWSSSOAutoAssignments.Arn}*"
+              - !Sub "${AWSSSOAutoAssignments.Arn}*"
         - Sid: IAMCleanupActions
           Effect: Allow
           Action:

@@ -176,7 +176,26 @@ def lambda_handler(event, context):
             perm_name = group_to_id[2]
             perm_set_arn = getPermIDFromName(get_perm_sets, perm_name, ssoadmin_client)
             sso_associate_response = associateSSO(SSO_INSTANCE_ARN, account_id, perm_set_arn, group_id)
-            print(sso_associate_response)
-    # Group names are probably not correct if you get this
+            sso_assignment_target = sso_associate_response["AccountAssignmentCreationStatus"]["Status"]
+            sso_assignment_request_id = sso_associate_response["AccountAssignmentCreationStatus"]["RequestId"]
+            while sso_assignment_target != "SUCCEEDED" or sso_assignment_target != "FAILED":
+                assignment_status = ssoadmin_client.describe_account_assignment_creation_status(
+                    InstanceArn=SSO_INSTANCE_ARN,
+                    AccountAssignmentCreationRequestId=sso_assignment_request_id
+                )
+                sso_assignment_target = assignment_status["AccountAssignmentCreationStatus"]["Status"]
+                if sso_assignment_target != "SUCCEEDED" or sso_assignment_target != "FAILED":
+
+                    dynamo = boto3.client('dynamodb')
+                    try:
+                        table = dynamo.Table("AWSSSOAutoAssignments")
+                        table.put_item(Item=assignment_status)
+                    except dynamo.exceptions.ProvisionedThroughputExceededException as e:
+                        print(e)
+                    except dynamo.exceptions.RequestLimitExceeded as e:
+                        print(e)
+                    except dynamo.exceptions.ResourceNotFoundException as e:
+                        print(e)
+
     else:
         print("Nothing I can do here")
