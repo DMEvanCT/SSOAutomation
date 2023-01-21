@@ -4,7 +4,6 @@ import boto3
 import cfnresponse
 
 def lambda_handler(event, context):
-    freshAccounts = []
     if event["RequestType"] == "Create":
         organizations = boto3.client("organizations")
         accounts = organizations.list_accounts()
