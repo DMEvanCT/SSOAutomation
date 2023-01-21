@@ -91,6 +91,35 @@ Resources:
                     state:
                       - "SUCCEEDED"
 
+  CleanupClosedAccounts:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: closed_accounts_cleanup/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - arm64
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+            - "dynamodb:DeleteItem"
+            - "dynamodb:GetItem"
+            Resource: !GetAtt AWSOrgAccounts.Arn
+      Events:
+        CloseAccountEvent:
+          Type: EventBridgeRule
+          Properties:
+            InputPath: $.detail.requestParameters
+            Pattern:
+              "detail-type":
+                - "AWS API Call via CloudTrail"
+              detail:
+                eventSource:
+                  - "organizations.amazonaws.com"
+                eventName:
+                  - CloseAccount
+
 
   SSOAutoAssignDynamo:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
@@ -339,6 +368,22 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
+
+  AWSSSOAutoAssignments:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AWSSSOAutoAssignments
+      BillingMode: PROVISIONED
+      AttributeDefinitions:
+        -
+          AttributeName: Id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: Id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
 
   InitialLoadRun:
     Type: AWS::CloudFormation::CustomResource
