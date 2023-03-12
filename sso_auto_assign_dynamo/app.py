@@ -8,18 +8,39 @@ from boto3.dynamodb.conditions import Key
 MAX_RETURN_PERMISSION_SET = os.getenv("MAX_RETURN_PERMISSION_SET")
 SSO_INSTANCE_ARN = os.getenv("SSO_INSTANCE_ARN")
 DIRECTORY_SERVICE_ID = os.getenv("DIRECTORY_SERVICE_ID")
+SSO_ASSOCIATE_QUEUE_URL = os.getenv("SSO_ASSOCIATE_QUEUE_URL")
 
 
-# Get the account id from dynamo because AWS API sucks
-def getAccountIDDynamo(account_name):
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('AWSOrgAccounts')
-    response = table.query(
-        IndexName='AccountNameIndex',
-        KeyConditionExpression=Key('Name').eq(account_name)
-    )
+class DynamoQueries:
+    def getAccountName(self, account_id):
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table('AWSOrgAccounts')
+        response = table.query(
+            IndexName='AccountNameIndex',
+            KeyConditionExpression=Key('Id').eq(account_id)
+        )
 
-    return response["Items"][0]["Id"]
+        return response["Items"][0]["Name"]
+
+    def getAccountIdFromName(self, account_name):
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table('AWSOrgAccounts')
+        response = table.query(
+            IndexName='AccountNameIndex',
+            KeyConditionExpression=Key('Name').eq(account_name)
+        )
+
+        return response["Items"][0]["Id"]
+
+    def getDynamoOrgGroups(self):
+        # Table scans are sub par but so is itterating through a list for account names :Shrug: if someone wants to make
+        # better be my guest.
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table('ORGSSOGroups')
+        response = table.scan()
+        return response["Items"]
+
+
 
 
 # Get the permission set ID from the name of the permission
@@ -42,8 +63,10 @@ def getPermIDFromName(perms, permission_set_name, ssoadmin_client):
 def getAllAccountIDs(accounts_list):
     all_accounts_org = []
     for account in accounts_list:
-        all_accounts_org.append(account["Id"])
+        all_accounts_org.append({"AccountId": account["Id"], "AccountName": account["Name"]})
     return all_accounts_org
+
+
 
 
 # Get the group ID by the name of the group (Used in SSO assignment)
@@ -104,20 +127,15 @@ def associateSSO(sso_instance_arn, account_id, perm_set_arn, group_id):
     # Print the response to ensure things are in progress
     return response
 
-def getDynamoOrgGroups():
-    # Table scans are sub par but so is itterating through a list for account names :Shrug: if someone wants to make
-    # better be my guest.
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('ORGSSOGroups')
-    response = table.scan()
-    return response["Items"]
-
 
 def lambda_handler(event, context):
     event_name = event["eventName"]
+    dynamo = DynamoQueries()
     # Assigns to groups to accounts and permission sets on CreatGroup
     if event_name == "CreateGroup":
         ssoadmin_client = boto3.client("sso-admin")
+        sqs = boto3.client('sqs')
+        sqs_associate_queue = os.getenv("SSO_ASSOCIATE_QUEUE_URL")
         identity_services_client = boto3.client("identitystore")
 
         organizations = boto3.client('organizations')
@@ -126,7 +144,7 @@ def lambda_handler(event, context):
             InstanceArn=SSO_INSTANCE_ARN,
             MaxResults=100
         )
-        # Again super inefiecent. @TODO work with aws to make this filterable
+        # Again super inefficient. @TODO work with aws to make this filterable
         group = event.get("responseElements", {}).get("group", {})
         group_name = group["displayName"]
         group_name_split = group_name.split("-")
@@ -136,7 +154,7 @@ def lambda_handler(event, context):
             account_name = group_name_split[2]
             permission_set = group_name_split[3]
             print(f'Account Name: {account_name}, Permission Set: {permission_set}, GroupName: {group_name}')
-            account_id = getAccountIDDynamo(account_name)
+            account_id = dynamo.getAccountIdFromName(account_name)
             group_id = getGroupbyGroupName(group_name)
             # Get the permission set ARN from the name
             perm_set_arn = getPermIDFromName(get_perm_sets, permission_set, ssoadmin_client)
@@ -144,31 +162,47 @@ def lambda_handler(event, context):
 
             # Create the Association between the group permission and account (Create Persona)
             sso_associate_response = associateSSO(SSO_INSTANCE_ARN, account_id, perm_set_arn, group_id)
+            sso_associate_response["AccountName"] = account_name
+            sso_associate_response["AccountId"] = account_id
+            sso_associate_response["PermissionSet"] = permission_set
             # Print the response to ensure things are in progress
-            print(sso_associate_response)
+            # Send the response to the SQS queue for the next lambda to pick up
+            sqs.send_message(
+                QueueUrl=SSO_ASSOCIATE_QUEUE_URL,
+                MessageBody=json.dumps(sso_associate_response),
+                DelaySeconds=20
+            )
 
         if group_name_split[1] == "O":
             permission_set = group_name_split[2]
             accounts = organizations.list_accounts()
             accounts_list = accounts["Accounts"]
-            account_ids = getAllAccountIDs(accounts_list)
+            account_info = getAllAccountIDs(accounts_list)
             group_id = getGroupbyGroupName(group_name)
 
             perm_set_arn = getPermIDFromName(get_perm_sets, permission_set, ssoadmin_client)
-            for account in account_ids:
-                sso_associate_response = associateSSO(SSO_INSTANCE_ARN, account, perm_set_arn, group_id)
-                print(sso_associate_response)
+            for account in account_info:
+                sso_associate_response = associateSSO(SSO_INSTANCE_ARN, account["AccountId"], perm_set_arn, group_id)
+                sso_associate_response["AccountName"] = account["AccountName"]
+                sso_associate_response["AccountId"] = account["AccountId"]
+                sso_associate_response["PermissionSet"] = permission_set
+                sqs.send_message(
+                    QueueUrl=SSO_ASSOCIATE_QUEUE_URL,
+                    MessageBody=json.dumps(sso_associate_response),
+                    DelaySeconds=20
+                )
+
     # Uses the account create event to auto assign all O groups to new accounts
     if event_name == "CreateManagedAccount":
-        print("MANAGED ACCOUNT")
         ssoadmin_client = boto3.client("sso-admin")
         get_perm_sets = ssoadmin_client.list_permission_sets(
             InstanceArn=SSO_INSTANCE_ARN,
             MaxResults=100
         )
-        group_names = getDynamoOrgGroups()
+        group_names = dynamo.getDynamoOrgGroups()
         account_info = event.get("serviceEventDetails", {}).get("createManagedAccountStatus", {})
         account_id = account_info["account"]["accountId"]
+        account_name = account_info["account"]["accountName"]
         for group in group_names:
             group_name = group["GroupID"]
             group_id = getGroupbyGroupName(group_name)
@@ -176,7 +210,15 @@ def lambda_handler(event, context):
             perm_name = group_to_id[2]
             perm_set_arn = getPermIDFromName(get_perm_sets, perm_name, ssoadmin_client)
             sso_associate_response = associateSSO(SSO_INSTANCE_ARN, account_id, perm_set_arn, group_id)
-            print(sso_associate_response)
+            sso_associate_response["AccountName"] = account_name
+            sso_associate_response["AccountId"] = account_id
+            sso_associate_response["PermissionSet"] = perm_name
+            sqs.send_message(
+                QueueUrl=SSO_ASSOCIATE_QUEUE_URL,
+                MessageBody=json.dumps(sso_associate_response),
+                DelaySeconds=20
+            )
+
     # Group names are probably not correct if you get this
     else:
         print("Nothing I can do here")

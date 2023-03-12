@@ -17,45 +17,12 @@ Parameters:
     Type: String
 
 Resources:
-#  SSOAutoAssign:
-#    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-#    Properties:
-#      CodeUri: sso_auto_assign/
-#      Handler: app.lambda_handler
-#      Runtime: python3.9
-#      Environment:
-#        Variables:
-#          DIRECTORY_SERVICE_ID: !Ref DIRECTORYSERVICEID
-#          SSO_INSTANCE_ARN: !Ref SSOINSTANCEARN
-#      Architectures:
-#        - arm64
-#      Policies:
-#        - Statement:
-#            Effect: Allow
-#            Action:
-#              - sso:*
-#            Resource: "*"
-#        - Statement:
-#            Effect: Allow
-#            Action: "identitystore:ListGroups"
-#            Resource: "*"
-#        - Statement:
-#            Effect: Allow
-#            Action: "organizations:ListAccounts"
-#            Resource: "*"
-#      Events:
-#        CreateGroupEvent:
-#          Type: EventBridgeRule
-#          Properties:
-#              InputPath: "$.detail"
-#              Pattern:
-#                "detail-type":
-#                  - "AWS API Call via CloudTrail"
-#                detail:
-#                  eventSource:
-#                    - "sso-directory.amazonaws.com"
-#                  eventName:
-#                      - CreateGroup
+  # SQS Queue for SSO Auto Assign
+  SSOAutoAssignQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: !Sub "SSOAutoAssignQueue-${AWS::StackName}"
+
   DynamoDBAccountLoadDynamic:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -131,6 +98,7 @@ Resources:
         Variables:
           DIRECTORY_SERVICE_ID: !Ref DIRECTORYSERVICEID
           SSO_INSTANCE_ARN: !Ref SSOINSTANCEARN
+          SSO_ASSOCIATE_QUEUE_URL: !GetAtt SSOAutoAssignQueue.QueueUrl
       Architectures:
         - arm64
       Policies:
@@ -247,6 +215,13 @@ Resources:
             - "identitystore:ListUsers"
           Resource:
             - "*"
+        - Sid: AllowSQSSendMessage
+          Effect: Allow
+          Action:
+            - "sqs:SendMessage"
+          Resource:
+            - !GetAtt SSOAutoAssignQueue.Arn
+
       Events:
         CreateGroupEvent:
           Type: EventBridgeRule
@@ -384,6 +359,7 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
+
 
   InitialLoadRun:
     Type: AWS::CloudFormation::CustomResource
