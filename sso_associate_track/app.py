@@ -31,7 +31,8 @@ def lambda_handler(event, context):
         recordedInfo = {"RequestID": message["Body"]["AccountAssignmentCreationStatus"]["RequestId"],
                         "AccountName": message["Body"]["AccountName"], "AccountId": message["Body"]["AccountId"],
                         "PermissionSet": message["Body"]["PermissionSet"], "Status": assignment_status,
-                        "Timestamp": message["Body"]["AccountAssignmentCreationStatus"]["CreatedDate"]}
+                        "Timestamp": message["Body"]["AccountAssignmentCreationStatus"]["CreatedDate"],
+                        "ProvisionType": message["Body"]["ProvisionType"]}
         try:
             table = dynamodb.Table("AWSSSOAutoAssignments")
             table.put_item(Item=recordedInfo)
