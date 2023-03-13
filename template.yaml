@@ -292,7 +292,7 @@ Resources:
         - Sid: AllowSSOGetAssignmentStatus
           Effect: Allow
           Action:
-            - 'sso:GetAssignmentStatus'
+            - 'sso:DescribePermissionSetProvisioningStatus'
           Resource: !Ref SSOINSTANCEARN
 
   InitialLoad:
