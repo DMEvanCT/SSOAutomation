@@ -275,6 +275,7 @@ Resources:
       Environment:
         Variables:
           SSO_ASSOCIATE_QUEUE_URL: !GetAtt SSOAutoAssignQueue.QueueUrl
+          SSO_INSTANCE_ARN: !Ref SSOINSTANCEARN
       Policies:
       - Statement:
         - Sid: SQSPermissions
@@ -288,6 +289,11 @@ Resources:
           Action:
             - 'dynamodb:PutItem'
           Resource: !GetAtt AWSSSOAutoAssignments.Arn
+        - Sid: AllowSSOGetAssignmentStatus
+          Effect: Allow
+          Action:
+            - 'sso:GetAssignmentStatus'
+          Resource: !Ref SSOINSTANCEARN
 
   InitialLoad:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
@@ -389,10 +395,10 @@ Resources:
       BillingMode: PROVISIONED
       AttributeDefinitions:
         -
-          AttributeName: Id
+          AttributeName: RequestID
           AttributeType: S
       KeySchema:
-        - AttributeName: Id
+        - AttributeName: RequestID
           KeyType: HASH
       ProvisionedThroughput:
         ReadCapacityUnits: 5
