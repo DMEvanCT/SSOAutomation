@@ -40,8 +40,6 @@ class DynamoQueries:
         return response["Items"]
 
 
-
-
 # Get the permission set ID from the name of the permission
 def getPermIDFromName(perms, permission_set_name, ssoadmin_client):
     for perm in perms["PermissionSets"]:
@@ -64,8 +62,6 @@ def getAllAccountIDs(accounts_list):
     for account in accounts_list:
         all_accounts_org.append({"AccountId": account["Id"], "AccountName": account["Name"]})
     return all_accounts_org
-
-
 
 
 # Get the group ID by the name of the group (Used in SSO assignment)
