@@ -134,9 +134,6 @@ def lambda_handler(event, context):
     if event_name == "CreateGroup":
         ssoadmin_client = boto3.client("sso-admin")
         sqs = boto3.client('sqs')
-        sqs_associate_queue = os.getenv("SSO_ASSOCIATE_QUEUE_URL")
-        identity_services_client = boto3.client("identitystore")
-
         organizations = boto3.client('organizations')
 
         get_perm_sets = ssoadmin_client.list_permission_sets(
