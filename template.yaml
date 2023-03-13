@@ -22,6 +22,19 @@ Resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: !Sub "SSOAutoAssignQueue-${AWS::StackName}"
+        KmsMasterKeyId: alias/aws/sqs
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - "SSOAutoAssignQueueDLQ"
+              - "Arn"
+          maxReceiveCount: 15
+  SSOAutoAssignQueueDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: !Sub "SSOAutoAssignQueueDLQ-${AWS::StackName}"
+        KmsMasterKeyId: alias/aws/sqs
+
 
   DynamoDBAccountLoadDynamic:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
@@ -251,6 +264,31 @@ Resources:
                   createManagedAccountStatus:
                     state:
                       - "SUCCEEDED"
+  SSOAssociateRoleTrack:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: sso_associate_track/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          SSO_ASSOCIATE_QUEUE_URL: !GetAtt SSOAutoAssignQueue.QueueUrl
+      Policies:
+      - Statement:
+        - Sid: SQSPermissions
+          Effect: Allow
+          Action:
+            - 'sqs:ReceiveMessage'
+            - 'sqs:DeleteMessage'
+          Resource: !GetAtt SSOAutoAssignQueue.Arn
+        - Sid: DynamoDBPermissions
+          Effect: Allow
+          Action:
+            - 'dynamodb:PutItem'
+          Resource: !GetAtt AWSSSOAutoAssignments.Arn
+
   InitialLoad:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -359,7 +397,6 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
-
 
   InitialLoadRun:
     Type: AWS::CloudFormation::CustomResource
