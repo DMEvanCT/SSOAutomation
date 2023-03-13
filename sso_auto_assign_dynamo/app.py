@@ -157,7 +157,7 @@ def lambda_handler(event, context):
             sso_associate_response["AccountName"] = account_name
             sso_associate_response["AccountId"] = account_id
             sso_associate_response["PermissionSet"] = permission_set
-            sso_associate_response["ProvisionType"] == "Organization"
+            sso_associate_response["ProvisionType"] = "Account"
             # Print the response to ensure things are in progress
             # Send the response to the SQS queue for the next lambda to pick up
             sqs.send_message(
@@ -179,7 +179,7 @@ def lambda_handler(event, context):
                 sso_associate_response["AccountName"] = account["AccountName"]
                 sso_associate_response["AccountId"] = account["AccountId"]
                 sso_associate_response["PermissionSet"] = permission_set
-                sso_associate_response["ProvisionType"] == "Organization"
+                sso_associate_response["ProvisionType"] = "Organization"
                 sqs.send_message(
                     QueueUrl=SSO_ASSOCIATE_QUEUE_URL,
                     MessageBody=json.dumps(sso_associate_response),
@@ -207,7 +207,7 @@ def lambda_handler(event, context):
             sso_associate_response["AccountName"] = account_name
             sso_associate_response["AccountId"] = account_id
             sso_associate_response["PermissionSet"] = perm_name
-            sso_associate_response["ProvisionType"] == "Organization"
+            sso_associate_response["ProvisionType"] = "Organization"
             sqs.send_message(
                 QueueUrl=SSO_ASSOCIATE_QUEUE_URL,
                 MessageBody=json.dumps(sso_associate_response),

@@ -283,6 +283,7 @@ Resources:
           Action:
             - 'sqs:ReceiveMessage'
             - 'sqs:DeleteMessage'
+            - 'sqs:GetQueueAttributes'
           Resource: !GetAtt SSOAutoAssignQueue.Arn
         - Sid: DynamoDBPermissions
           Effect: Allow
@@ -294,6 +295,13 @@ Resources:
           Action:
             - 'sso:DescribePermissionSetProvisioningStatus'
           Resource: !Ref SSOINSTANCEARN
+
+  SSOAssociationRoleMapping:
+    Type: 'AWS::Lambda::EventSourceMapping'
+    Properties:
+      EventSourceArn: !GetAtt SSOAutoAssignQueue.Arn
+      FunctionName: !GetAtt SSOAssociateRoleTrack.Arn
+      BatchSize: 10
 
   InitialLoad:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction

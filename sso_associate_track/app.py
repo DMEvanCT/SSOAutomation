@@ -18,6 +18,7 @@ def lambda_handler(event, context):
         WaitTimeSeconds=20
     )
     messages = 0
+    print(sqs_message)
     assignment_status = None
     while messages < len(sqs_message["Messages"]):
         message = sqs_message["Messages"][messages]
