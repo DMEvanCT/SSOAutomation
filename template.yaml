@@ -15,6 +15,9 @@ Parameters:
     Type: String
   DIRECTORYSERVICEID:
     Type: String
+  DefaultLogRetention:
+    Type: Number
+    Default: 30
 
 Resources:
   # SQS Queue for SSO Auto Assign
@@ -71,6 +74,12 @@ Resources:
                     state:
                       - "SUCCEEDED"
 
+  AccountLoadDynamicLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['/', ['/aws/lambda', !Ref DynamoDBAccountLoadDynamic]]
+      RetentionInDays: !Ref DefaultLogRetention
+
   CleanupClosedAccounts:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -100,6 +109,11 @@ Resources:
                 eventName:
                   - CloseAccount
 
+  CleanupAccountsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['/', ['/aws/lambda', !Ref CleanupClosedAccounts]]
+      RetentionInDays: !Ref DefaultLogRetention
 
   SSOAutoAssignDynamo:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
@@ -265,6 +279,12 @@ Resources:
                     state:
                       - "SUCCEEDED"
 
+  DynamoAutoAssignLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['/', ['/aws/lambda', !Ref SSOAutoAssignDynamo]]
+      RetentionInDays: !Ref DefaultLogRetention
+
   SSOAssociateRoleTrack:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -297,6 +317,12 @@ Resources:
             - 'sso:DescribePermissionSetProvisioningStatus'
           Resource: !Ref SSOINSTANCEARN
 
+  SSOAutoTrackLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['/', ['/aws/lambda', !Ref SSOAssociateRoleTrack]]
+      RetentionInDays: !Ref DefaultLogRetention
+
   SSOAssociationRoleMapping:
     Type: 'AWS::Lambda::EventSourceMapping'
     Properties:
@@ -322,7 +348,13 @@ Resources:
             Action: "dynamodb:PutItem"
             Resource: !GetAtt AWSOrgAccounts.Arn
 
-  OrgWideRoles:
+  InitialLoadLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['/', ['/aws/lambda', !Ref InitialLoad]]
+      RetentionInDays: !Ref DefaultLogRetention
+
+  OrgWideRolesLambda:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       CodeUri: org_wide_groups/
@@ -349,6 +381,11 @@ Resources:
                   eventName:
                       - CreateGroup
 
+  OrgWideRolesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['/', ['/aws/lambda', !Ref OrgWideRolesLambda]]
+      RetentionInDays: !Ref DefaultLogRetention
 
   AWSOrgAccounts:
     Type: AWS::DynamoDB::Table

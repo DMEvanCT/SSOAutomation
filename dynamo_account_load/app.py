@@ -1,36 +1,30 @@
 import boto3
 
-
 def lambda_handler(event, context):
+    def log_exception(exception):
+        # @TODO turn this into actual logger vs print
+        print(exception)
+
     try:
         organizations = boto3.client("organizations")
         account_id = event["accountId"]
-        org_account = organizations.describe_account(
-            AccountId=account_id
-        )
+        org_account = organizations.describe_account(AccountId=account_id)
     except organizations.exceptions.AccessDeniedException as e:
-        # @TODO turn this into actual logger vs print
-        print(e)
+        log_exception(e)
+        return
+
     print("Printing OrgAccount:")
     org_account_info = org_account["Account"]
     dynamo = boto3.resource('dynamodb')
-    del org_account_info["JoinedTimestamp"]
-    del org_account_info["JoinedMethod"]
-    # Insert into the AWSOrgAccounts Table in master
+    org_account_info.pop("JoinedTimestamp", None)
+    org_account_info.pop("JoinedMethod", None)
+
     try:
         table = dynamo.Table("AWSOrgAccounts")
         table.put_item(Item=org_account_info)
     except dynamo.exceptions.ProvisionedThroughputExceededException as e:
-        print(e)
+        log_exception(e)
     except dynamo.exceptions.RequestLimitExceeded as e:
-        print(e)
+        log_exception(e)
     except dynamo.exceptions.ResourceNotFoundException as e:
-        print(e)
-
-
-
-
-
-
-
-
+        log_exception(e)
