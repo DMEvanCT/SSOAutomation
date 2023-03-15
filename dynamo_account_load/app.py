@@ -1,9 +1,11 @@
 import boto3
+from aws_lambda_powertools import Logger
+
+logger = Logger(service="sso-auto-assign")
 
 def lambda_handler(event, context):
     def log_exception(exception):
-        # @TODO turn this into actual logger vs print
-        print(exception)
+        logger.info(exception)
 
     try:
         organizations = boto3.client("organizations")

@@ -45,8 +45,14 @@ Resources:
       CodeUri: dynamo_account_load/
       Handler: app.lambda_handler
       Runtime: python3.9
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2-Arm64:23
       Architectures:
         - arm64
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: dynamo_account_load
+          LOG_LEVEL: INFO
       Policies:
         - Statement:
             Effect: Allow
@@ -86,6 +92,8 @@ Resources:
       CodeUri: closed_accounts_cleanup/
       Handler: app.lambda_handler
       Runtime: python3.9
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2-Arm64:23
       Architectures:
         - arm64
       Policies:
@@ -121,6 +129,8 @@ Resources:
       CodeUri: sso_auto_assign_dynamo/
       Handler: app.lambda_handler
       Runtime: python3.9
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2-Arm64:23
       Environment:
         Variables:
           DIRECTORY_SERVICE_ID: !Ref DIRECTORYSERVICEID
@@ -291,6 +301,8 @@ Resources:
       CodeUri: sso_associate_track/
       Handler: app.lambda_handler
       Runtime: python3.9
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2-Arm64:23
       Architectures:
         - arm64
       Environment:
@@ -336,6 +348,8 @@ Resources:
       CodeUri: initial_load/
       Handler: app.lambda_handler
       Runtime: python3.9
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2-Arm64:23
       Architectures:
         - arm64
       Policies:
@@ -360,6 +374,8 @@ Resources:
       CodeUri: org_wide_groups/
       Handler: app.lambda_handler
       Runtime: python3.9
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2-Arm64:23
       Architectures:
         - arm64
       Policies:
