@@ -112,6 +112,7 @@ Resources:
           DIRECTORY_SERVICE_ID: !Ref DIRECTORYSERVICEID
           SSO_INSTANCE_ARN: !Ref SSOINSTANCEARN
           SSO_ASSOCIATE_QUEUE_URL: !GetAtt SSOAutoAssignQueue.QueueUrl
+          LOG_LEVEL: INFO
       Architectures:
         - arm64
       Policies:
@@ -234,7 +235,6 @@ Resources:
             - "sqs:SendMessage"
           Resource:
             - !GetAtt SSOAutoAssignQueue.Arn
-
       Events:
         CreateGroupEvent:
           Type: EventBridgeRule
@@ -264,6 +264,7 @@ Resources:
                   createManagedAccountStatus:
                     state:
                       - "SUCCEEDED"
+
   SSOAssociateRoleTrack:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
