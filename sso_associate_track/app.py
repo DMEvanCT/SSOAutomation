@@ -30,14 +30,14 @@ def lambda_handler(event, context):
                 ProvisionPermissionSetRequestId=message["Body"]["AccountAssignmentCreationStatus"]["RequestId"]
             )
             assignment_status = check_status["Status"]
-        recordedInfo = {"RequestID": message["Body"]["AccountAssignmentCreationStatus"]["RequestId"],
+        recorded_info = {"RequestID": message["Body"]["AccountAssignmentCreationStatus"]["RequestId"],
                         "AccountName": message["Body"]["AccountName"], "AccountId": message["Body"]["AccountId"],
                         "PermissionSet": message["Body"]["PermissionSet"], "Status": assignment_status,
                         "Timestamp": message["Body"]["AccountAssignmentCreationStatus"]["CreatedDate"],
                         "ProvisionType": message["Body"]["ProvisionType"]}
         try:
             table = dynamodb.Table("AWSSSOAutoAssignments")
-            table.put_item(Item=recordedInfo)
+            table.put_item(Item=recorded_info)
         except dynamodb.exceptions.ProvisionedThroughputExceededException as e:
             print(e)
         except dynamodb.exceptions.RequestLimitExceeded as e:
