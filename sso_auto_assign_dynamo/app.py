@@ -8,13 +8,14 @@ MAX_RETURN_PERMISSION_SET = os.getenv("MAX_RETURN_PERMISSION_SET")
 SSO_INSTANCE_ARN = os.getenv("SSO_INSTANCE_ARN")
 DIRECTORY_SERVICE_ID = os.getenv("DIRECTORY_SERVICE_ID")
 SSO_ASSOCIATE_QUEUE_URL = os.getenv("SSO_ASSOCIATE_QUEUE_URL")
+ACCOUNTS_TABLE = os.getenv("ACCOUNTS_TABLE")
 
 logger = Logger(service="sso-auto-assign")
 
 class DynamoQueries:
     def get_account_name(self, account_id):
         dynamodb = boto3.resource('dynamodb')
-        table = dynamodb.Table('AWSOrgAccounts')
+        table = dynamodb.Table(ACCOUNTS_TABLE)
         response = table.query(
             IndexName='AccountNameIndex',
             KeyConditionExpression=Key('Id').eq(account_id)
@@ -24,7 +25,7 @@ class DynamoQueries:
 
     def get_account_id_from_name(self, account_name):
         dynamodb = boto3.resource('dynamodb')
-        table = dynamodb.Table('AWSOrgAccounts')
+        table = dynamodb.Table(ACCOUNTS_TABLE)
         response = table.query(
             IndexName='AccountNameIndex',
             KeyConditionExpression=Key('Name').eq(account_name)
@@ -184,4 +185,5 @@ def lambda_handler(event, context):
 
         else:
             print("Nothing I can do here")
+
 

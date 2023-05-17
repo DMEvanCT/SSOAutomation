@@ -1,7 +1,10 @@
 import boto3
+import os
 from aws_lambda_powertools import Logger
 
 logger = Logger(service="sso-auto-assign")
+
+ACCOUNTS_TABLE = os.getenv("ACCOUNTS_TABLE")
 
 def lambda_handler(event, context):
     def log_exception(exception):
@@ -22,7 +25,7 @@ def lambda_handler(event, context):
     org_account_info.pop("JoinedMethod", None)
 
     try:
-        table = dynamo.Table("AWSOrgAccounts")
+        table = dynamo.Table(ACCOUNTS_TABLE)
         table.put_item(Item=org_account_info)
     except dynamo.exceptions.ProvisionedThroughputExceededException as e:
         log_exception(e)

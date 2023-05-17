@@ -9,6 +9,13 @@ Description: >
 Globals:
   Function:
     Timeout: 30
+    Environment:
+      Variables:
+        LOG_LEVEL: INFO
+        ACCOUNTS_TABLE: !Ref AWSOrgAccounts
+        ORG_GROUPS_TABLE: !Ref AWSOrgWideGroups
+    Layers:
+      - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2-Arm64:23
 
 Parameters:
   SSOINSTANCEARN:
@@ -295,61 +302,12 @@ Resources:
       LogGroupName: !Join ['/', ['/aws/lambda', !Ref SSOAutoAssignDynamo]]
       RetentionInDays: !Ref DefaultLogRetention
 
-  SSOAssociateRoleTrack:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-    Properties:
-      CodeUri: sso_associate_track/
-      Handler: app.lambda_handler
-      Runtime: python3.9
-      Layers:
-        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2-Arm64:23
-      Architectures:
-        - arm64
-      Environment:
-        Variables:
-          SSO_ASSOCIATE_QUEUE_URL: !GetAtt SSOAutoAssignQueue.QueueUrl
-          SSO_INSTANCE_ARN: !Ref SSOINSTANCEARN
-      Policies:
-      - Statement:
-        - Sid: SQSPermissions
-          Effect: Allow
-          Action:
-            - 'sqs:ReceiveMessage'
-            - 'sqs:DeleteMessage'
-            - 'sqs:GetQueueAttributes'
-          Resource: !GetAtt SSOAutoAssignQueue.Arn
-        - Sid: DynamoDBPermissions
-          Effect: Allow
-          Action:
-            - 'dynamodb:PutItem'
-          Resource: !GetAtt AWSSSOAutoAssignments.Arn
-        - Sid: AllowSSOGetAssignmentStatus
-          Effect: Allow
-          Action:
-            - 'sso:DescribePermissionSetProvisioningStatus'
-          Resource: !Ref SSOINSTANCEARN
-
-  SSOAutoTrackLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Join ['/', ['/aws/lambda', !Ref SSOAssociateRoleTrack]]
-      RetentionInDays: !Ref DefaultLogRetention
-
-  SSOAssociationRoleMapping:
-    Type: 'AWS::Lambda::EventSourceMapping'
-    Properties:
-      EventSourceArn: !GetAtt SSOAutoAssignQueue.Arn
-      FunctionName: !GetAtt SSOAssociateRoleTrack.Arn
-      BatchSize: 10
-
   InitialLoad:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       CodeUri: initial_load/
       Handler: app.lambda_handler
       Runtime: python3.9
-      Layers:
-        - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2-Arm64:23
       Architectures:
         - arm64
       Policies:
@@ -450,10 +408,30 @@ Resources:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
 
+  AWSSSOAutoAssignmentsAutoscaleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: application-autoscaling.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DynamoDBAutoscalePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeTable
+                  - dynamodb:UpdateTable
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AWSSSOAutoAssignments}"
+
   AWSSSOAutoAssignments:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: AWSSSOAutoAssignments
       BillingMode: PROVISIONED
       AttributeDefinitions:
         -
@@ -465,6 +443,30 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
+  
+  AWSSSOAutoAssignmentsScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 20
+      MinCapacity: 5
+      ResourceId: !Sub "table/${AWSSSOAutoAssignments}"
+      RoleARN: !GetAtt AWSSSOAutoAssignmentsAutoscaleRole.Arn
+      ScalableDimension: dynamodb:table:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  
+  AWSSSOAutoAssignmentsScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: AWSSSOAutoAssignmentsScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AWSSSOAutoAssignmentsScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+        TargetValue: 70
 
   InitialLoadRun:
     Type: AWS::CloudFormation::CustomResource
